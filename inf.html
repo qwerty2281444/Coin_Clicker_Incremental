@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incremental Coin Clicker</title>
+    <script src="https://cdn.jsdelivr.net/npm/break_eternity.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #282c34;
+            color: white;
+        }
+        button {
+            font-size: 20px;
+            padding: 10px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .tab {
+            display: none;
+        }
+        .active-tab {
+            display: block;
+        }
+        #achievements {
+            margin-top: 20px;
+            font-size: 18px;
+            color: gold;
+        }
+        #progressContainer {
+            width: 300px;
+            height: 20px;
+            background-color: gray;
+            border-radius: 10px;
+            margin: 10px auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background-color: limegreen;
+            transition: width 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <button onclick="showTab('gameTab')">Game</button>
+    <button onclick="showTab('ascensionTab')" id="ascension_upgrade" style="display: none;">Ascension Upgrades</button>
+    <button onclick="showTab('researchTab')" id="research_upgrade" style="display: none;">Research Upgrades</button>
+
+    <div id="gameTab" class="tab active-tab">
+        <h2>Coins: <span id="coins">0</span></h2>
+        <h2>Multiplier: <span id="multiplier">1</span>x</h2>
+
+        <button onclick="mineCoin()">Mine Coin</button>
+        <button onclick="buyUpgrade()">+1 coin per click (Cost: <span id="upgradeCost">10</span> coins)</button>
+        <button onclick="buyAutoMiner()">Buy Auto-Miner that mine 20 coin per second (Cost: <span id="autoMinerCost">50</span> coins)</button>
+        <button onclick="prestige()" id="prestige" style="display: none;">Prestige (Reset for 2x boost, Cost: <span id="prestigeCost">100</span> coins)</button>
+        <button onclick="ascend()" id="ascension" style="display: none;">Ascend (Reset all for AP, Cost: <span id="ascendCost">1000</span> coins)</button>
+        <button onclick="research()" id="research" style="display: none;">Research (Reset everything up to this point for RP, Cost: <span id="researchCost">10</span> AP)</button>
+
+        <h3>Achievements:</h3>
+        <div id="achievements"></div>
+    </div>
+
+    <div id="ascensionTab" class="tab" >
+        <h2>Ascension Points: <span id="ascensionPoints">0</span></h2>
+        <button onclick="buyAPUpgrade()">AP Upgrade: +0.1x Multiplier (Cost: <span id="apUpgradeCost">1</span> AP)</button>
+        <button onclick="buyAutoUpgrade()">AP Upgrade: Auto-buy Upgrades (Cost: <span id="autoUpgradeCost">3</span> AP)</button>
+        <button onclick="buyAutoMinerUpgrade()">AP Upgrade: Auto-buy Auto-Miners (Cost: <span id="autoMinerUpgradeCost">5</span> AP)</button>
+    </div>
+
+    <!-- Research Tab -->
+    <div id="researchTab" class="tab" >
+        <h2>Research Points: <span id="researchPoints">0</span></h2>
+        <button onclick="buyRPmulti()">Researched Multiplier: +0.5x Multiplier (Cost: <span id="rpUpgradeCost">1</span> RP)</button>
+        <button onclick="buyascmulti()">Better Ascensions: +1 AP for ascend (Cost: <span id="rpUpgradeCost5">1</span> RP)</button>
+        <button onclick="buyupgradeEL()">Free upgrades: Coin upgrades dont consume coins (Cost: <span id="rpUpgradeCost2">2</span> RP)</button>
+        <button onclick="buyautoPrestige()">Researched Prestige: Autobuy prestiges (Cost: <span id="rpUpgradeCost3">3</span> RP)</button>
+        <button onclick="buyAscendgen()">Researched Ascension: Generate 100% of AP per reset (Cost: <span id="rpUpgradeCost4">5</span> RP)</button>
+        <button onclick="buyAutoclicker()">Researched mining: Click 20 times on mine coins per second (Cost: <span id="rpUpgradeCost6">6</span> RP)</button>
+        <h2>Your research level is: <span id="researchlevel">0</span></h2>
+        <div id="progressContainer">
+            <div id="progressBar"></div>
+        </div>
+        <p><span id="progressText">0%</span> to next Research Level</p>
+        <p><span id="researchBonus">X1</span> to coins gain</p>
+    </div>
+
+    <script>
+        let coins = new Decimal(0);
+        let coinsPerClick = new Decimal(1);
+        let upgradeCost = new Decimal(10);
+        let upgradeBase = new Decimal(2);
+        let upgradetimesbought = new Decimal(0);
+        let initialUpgradeCost = [];
+        let multiplier = new Decimal(1);
+        let autoMinerCost = new Decimal(50);
+        let autoMiners = new Decimal(0);
+        let prestigeCost = new Decimal(100);
+        let ascendCost = new Decimal(1000);
+        let ascensionPoints = new Decimal(0);
+        let apUpgradeCost = new Decimal(1);
+        let autoUpgradeCost = new Decimal(3);
+        let autoMinerUpgradeCost = new Decimal(5);
+        let apBonus = new Decimal(1);
+        let autoBuyUpgrades = false;
+        let autoBuyAutoMiners = false;
+        let researchPoints = new Decimal(1);
+        let researchCost = new Decimal(10);
+        let rpBonus = new Decimal(1);
+        let rpUpgradeCost = new Decimal(1);
+        let rpUpgradeCost2 = new Decimal(2);
+        let rpUpgradeCost5 = new Decimal(1);
+        let rpUpgradeCost3 = new Decimal(3);
+        let rpUpgradeCost4 = new Decimal(5);
+        let rpUpgradeCost6 = new Decimal(6);
+        let upgradeEL = false;
+        let researchAP = new Decimal(0);
+        let autoPrestige = false;
+        let ascendGen = new Decimal(0);
+        let autoclicker = new Decimal(0);
+        let researchlevel = new Decimal(0)
+        let researchxp = new Decimal(0)
+        let researchlevelCost = new Decimal(10)
+        let researchBonus = getResearchBonus()
+
+        function mineCoin() {
+            let researchBonus = getResearchBonus()
+            coins = coins.add(coinsPerClick.mul(multiplier.mul(apBonus.mul(rpBonus.mul(researchBonus)))));
+            updateUI();
+        }
+
+        function buyUpgrade() {
+            if (coins.gte(upgradeCost)) {
+                if(!upgradeEL) coins = coins.sub(upgradeCost);
+                coinsPerClick = coinsPerClick.add(1);
+                upgradetimesbought = upgradetimesbought.add(1);
+                upgradeCost = new Decimal(upgradeBase).pow(upgradetimesbought).mul(10);
+                updateUI();
+            }
+        }
+
+        function upgradeBuyMax(x) {
+            let amtToSpend = coins;
+            if (!upgradetimesbought[x]) upgradetimesbought[x] = new Decimal(0);
+            if (!upgradeCost[x]) upgradeCost[x] = new Decimal(1);
+            if (!upgradeBase[x]) upgradeBase[x] = new Decimal(1);
+            if (!initialUpgradeCost[x]) initialUpgradeCost[x] = new Decimal(10);
+            let amtToBuy = Decimal.affordGeometricSeries(amtToSpend, upgradeCost[x], upgradeBase[x], upgradetimesbought[x]);
+            let costToBuy = Decimal.sumGeometricSeries(amtToBuy, upgradeCost[x], upgradeBase[x], upgradetimesbought[x]);
+            if (costToBuy.lte(coins)) coins = coins.sub(costToBuy);
+            upgradetimesbought[x] = upgradetimesbought[x].add(amtToBuy);
+            upgradeCost[x] = new Decimal (flupgradeBase[x].pow(upgradetimesbought[x]).mul(initialUpgradeCost[x]).floor());
+            document.getElementById("upgradeCost").textContent = format(upgradeCost[x], 0);
+        }
+
+
+        function buyAutoMiner() {
+            if (coins.gte(autoMinerCost)) {
+                if(!upgradeEL) coins = coins.sub(autoMinerCost);
+                autoMiners = autoMiners.add(1);
+                autoMinerCost = new Decimal(1.7).pow(autoMiners).mul(50);
+                updateUI();
+            }
+        }
+
+
+        function prestige() {
+            if (coins.gte(prestigeCost)) {
+                coins = new Decimal(0);
+                multiplier = multiplier.mul(2);
+                autoMiners = new Decimal(0);
+                coinsPerClick = new Decimal(1);
+                upgradeCost = new Decimal(10);
+                autoMinerCost = new Decimal(50);
+                if (multiplier >= 16536) {
+                   prestigeCost = prestigeCost.mul(7); 
+                }
+                else {
+                    prestigeCost = prestigeCost.mul(3); 
+                }
+                updateUI();
+            }
+        }
+
+        function ascend() {
+            if (coins.gte(ascendCost)) {
+                ascensionPoints = ascensionPoints.add(1).add(researchAP);
+                coins = new Decimal(0);
+                coinsPerClick = new Decimal(1);
+                autoMiners = new Decimal(0);
+                multiplier = new Decimal(1);
+                upgradeCost = new Decimal(10);
+                autoMinerCost = new Decimal(50);
+                prestigeCost = new Decimal(100);
+                ascendCost = ascendCost.mul(1.5);
+                updateUI();
+            }
+        }
+
+        function research() {
+            if (ascensionPoints.gte(researchCost)) {
+                researchPoints = researchPoints.add(1);
+                coins = new Decimal(0);
+                coinsPerClick = new Decimal(1);
+                upgradeCost = new Decimal(10);
+                multiplier = new Decimal(1);
+                autoMinerCost = new Decimal(50);
+                autoMiners = new Decimal(0);
+                prestigeCost = new Decimal(100);
+                ascendCost = new Decimal(1000);
+                ascensionPoints = new Decimal(0);
+                apUpgradeCost = new Decimal(1);
+                autoUpgradeCost = new Decimal(3);
+                autoMinerUpgradeCost = new Decimal(5);
+                apBonus = new Decimal(1);
+                autoBuyUpgrades = false;
+                autoBuyAutoMiners = false;
+                updateUI();
+
+            }
+        }
+
+        function buyAPUpgrade() {
+            if (ascensionPoints.gte(apUpgradeCost)) {
+                ascensionPoints = ascensionPoints.sub(apUpgradeCost);
+                apBonus = apBonus.add(0.1);
+                apUpgradeCost = apUpgradeCost.mul(1.05);
+                updateUI();
+            }
+        }
+
+        function buyAutoUpgrade() {
+            if (ascensionPoints.gte(autoUpgradeCost)) {
+                ascensionPoints = ascensionPoints.sub(autoUpgradeCost);
+                autoBuyUpgrades = true
+                updateUI();
+            }
+        }
+
+        function buyAutoMinerUpgrade() {
+            if (ascensionPoints.gte(autoMinerUpgradeCost)) {
+                ascensionPoints = ascensionPoints.sub(autoMinerUpgradeCost);
+                autoBuyAutoMiners = true
+                updateUI();
+            }
+        }
+
+        function buyRPmulti() {
+            if (researchPoints.gte(rpUpgradeCost)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost);
+                rpBonus = rpBonus.add(0.5);
+                rpUpgradeCost = 1;
+                updateUI();
+            }
+        }
+
+        function buyupgradeEL() {
+            if (researchPoints.gte(rpUpgradeCost2)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost2);
+                upgradeEL = true;
+                updateUI();
+            }
+        }
+
+        function buyascmulti() {
+            if (researchPoints.gte(rpUpgradeCost5)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost5);
+                researchAP = researchAP.add(1);
+                updateUI();
+            }
+        }
+
+        function buyautoPrestige() {
+            if (researchPoints.gte(rpUpgradeCost3)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost3);
+                autoPrestige = true;
+                updateUI();
+            }
+        }
+
+        function buyAscendgen() {
+            if (researchPoints.gte(rpUpgradeCost4)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost4);
+                ascendGen = ascendGen.add(1);
+                updateUI();
+            }
+        }
+
+        function buyAutoclicker() {
+            if (researchPoints.gte(rpUpgradeCost6)) {
+                researchPoints = researchPoints.sub(rpUpgradeCost6);
+                autoclicker = autoclicker.add(1)
+                updateUI();
+                updateProgressBar();
+            }
+        }
+        function getResearchBonus() {
+            return new Decimal(1.05).pow(researchlevel);
+        }
+
+        function updateProgressBar() {
+            let progressPercent = researchxp.div(researchlevelCost).mul(100).min(100);
+            document.getElementById("progressBar").style.width = progressPercent.toString() + "%";
+            document.getElementById("progressText").innerText = progressPercent.toFixed(1) + "%";
+
+            if (researchxp.gte(researchlevelCost)) {
+                unlockNextResearchLevel();
+            }
+        }
+
+        function autobuys() {
+            if (autoBuyUpgrades && coins.gte(upgradeCost) ) buyUpgrade();
+            if (autoBuyAutoMiners && coins.gte(autoMinerCost)) buyAutoMiner();
+            if (autoPrestige && coins.gte(prestigeCost)) prestige();
+            updateUI();
+            updateProgressBar();
+        }
+
+        function autoMine() {
+            coins = coins.add(autoMiners);
+            if (ascendGen.gte(1) && coins >= ascendCost) ascensionPoints = ascensionPoints.add(ascendGen.div(20));
+            if (researchPoints.gte(1)) researchxp = researchxp.add(researchPoints);
+            if (autoclicker.gte(1)) mineCoin();
+            updateUI();
+            updateProgressBar();
+        }
+        function unlockNextResearchLevel() {
+            researchxp = new Decimal(0); // Reset progress
+            researchlevel = researchlevel.add(1)
+            researchlevelCost = researchlevelCost.mul(1.2);
+            updateProgressBar();
+        }
+
+
+        function updateUI() {
+            document.getElementById("coins").innerText = coins.toFixed(1).toString();
+            document.getElementById("multiplier").innerText = multiplier.toString();
+            document.getElementById("upgradeCost").innerText = upgradeCost.toFixed(2).toString();
+            document.getElementById("autoMinerCost").innerText = autoMinerCost.toFixed(2).toString();
+            document.getElementById("multiplier").innerText = multiplier.toString();
+            document.getElementById("prestigeCost").innerText = prestigeCost.toFixed(2).toString();
+            document.getElementById("ascendCost").innerText = ascendCost.toFixed(2).toString();
+            document.getElementById("ascensionPoints").innerText = ascensionPoints.toFixed(2).toString();
+            document.getElementById("apUpgradeCost").innerText = apUpgradeCost.toFixed(2).toString();
+            document.getElementById("researchPoints").innerText = researchPoints.toFixed(2).toString();
+            document.getElementById("researchlevel").innerText = researchlevel.toFixed(0).toString();
+            document.getElementById("researchBonus").innerText = getResearchBonus().toFixed(2).toString();
+            if (coins.gte(100)) {
+                document.getElementById("prestige").style.display = "inline-block";
+            }
+            if (coins.gte(1000)) {
+                document.getElementById("ascension").style.display = "inline-block";
+            }
+            if (ascensionPoints.gte(1)) {
+                document.getElementById("ascension_upgrade").style.display = "inline-block";
+            }
+            if (ascensionPoints.gte(10)) {
+                document.getElementById("research").style.display = "inline-block";
+            }
+            if (researchPoints.gte(1)) {
+                document.getElementById("research_upgrade").style.display = "inline-block";
+            }
+
+        }
+
+        function showTab(tabId) {
+            document.getElementById("gameTab").classList.remove("active-tab");
+            document.getElementById("ascensionTab").classList.remove("active-tab");
+            document.getElementById("researchTab").classList.remove("active-tab");
+            document.getElementById(tabId).classList.add("active-tab");
+        }
+
+        setInterval(autoMine, 50);
+        setInterval(autobuys, 0);
+    </script>
+
+</body>
+</html>
