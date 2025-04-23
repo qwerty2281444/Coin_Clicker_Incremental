@@ -201,7 +201,7 @@
                 autoMinerCost = new Decimal(50);
                 upgradetimesbought = new Decimal(0)
                 prestigeCost = new Decimal(100);
-                ascendCost = ascendCost.mul(1.5);
+                ascendCost = new Decimal(ascendCost).pow(1.5).mul(1000);
                 updateUI();
             }
         }
